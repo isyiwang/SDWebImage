@@ -56,6 +56,8 @@ typedef enum SDImageCacheType SDImageCacheType;
  */
 - (id)initWithNamespace:(NSString *)ns;
 
+- (void)moveImageFromKey:(NSString *)key toKey:(NSString *)newKey;
+
 /**
  * Add a read-only cache path to search for images pre-cached by SDImageCache
  * Useful if you want to bundle pre-loaded images with your app

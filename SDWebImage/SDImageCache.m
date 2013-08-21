@@ -131,6 +131,45 @@ static const NSInteger kDefaultCacheMaxCacheAge = 60 * 60 * 24 * 7; // 1 week
 
 #pragma mark ImageCache
 
+- (NSString *)cachePathForKey:(NSString *)key
+{
+    const char *str = [key UTF8String];
+    unsigned char r[CC_MD5_DIGEST_LENGTH];
+    CC_MD5(str, (CC_LONG)strlen(str), r);
+    NSString *filename = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                          r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]];
+    
+    return [self.diskCachePath stringByAppendingPathComponent:filename];
+}
+
+- (void)moveImageFromKey:(NSString *)key toKey:(NSString *)newKey
+{
+    if (!key || !newKey)
+    {
+        return;
+    }
+    UIImage *image = [self.memCache objectForKey:key];
+    if (image) {
+        [self.memCache setObject:image forKey:newKey cost:image.size.height * image.size.width * image.scale];
+        [self.memCache removeObjectForKey:key];
+    }
+    
+    dispatch_async(self.ioQueue, ^
+                   {
+                       
+                       // Can't use defaultManager another thread
+                       NSFileManager *fileManager = NSFileManager.new;
+                       
+                       if (![fileManager fileExistsAtPath:_diskCachePath])
+                       {
+                           [fileManager createDirectoryAtPath:_diskCachePath withIntermediateDirectories:YES attributes:nil error:NULL];
+                       }
+                       
+                       [fileManager moveItemAtPath:[self cachePathForKey:key] toPath:[self cachePathForKey:newKey] error:nil];
+                       
+                   });
+}
+
 - (void)storeImage:(UIImage *)image imageData:(NSData *)imageData forKey:(NSString *)key toDisk:(BOOL)toDisk
 {
     if (!image || !key)
